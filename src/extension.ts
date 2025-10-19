@@ -232,7 +232,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable, onChangeDisposable, clearHistoryDisposable);
 }
 
-function handleTimerStopped(elapsedTime: number) {
+async function handleTimerStopped(elapsedTime: number) {
     console.log('Timer stopped, elapsed time:', elapsedTime, 'seconds');
 
     const minutes = Math.floor(elapsedTime / 60);
@@ -241,7 +241,24 @@ function handleTimerStopped(elapsedTime: number) {
 
     vscode.window.showInformationMessage(`實驗計時結束！經過時間：${timeStr}`);
 
-    // TODO: Open Google Form in webview or external browser
+    // Close all Python editors to prevent viewing code during survey
+    const editors = vscode.window.visibleTextEditors;
+    for (const editor of editors) {
+        if (editor.document.languageId === 'python') {
+            await vscode.window.showTextDocument(editor.document.uri, {
+                preview: false,
+                viewColumn: editor.viewColumn
+            });
+            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+        }
+    }
+
+    // Maximize webview panel
+    if (currentPanel) {
+        currentPanel.reveal(vscode.ViewColumn.One, false);
+    }
+
+    // SurveyCake form will be loaded in webview by flowview.html
 }
 
 function handlePseudocodeLinesClick(pseudocodeLines: number[]) {

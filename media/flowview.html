@@ -7,7 +7,8 @@
             img-src %%CSP_SOURCE%% data:;
             script-src %%CSP_SOURCE%% 'nonce-%%NONCE%%';
             style-src %%CSP_SOURCE%% 'unsafe-inline';
-            font-src %%CSP_SOURCE%%;">
+            font-src %%CSP_SOURCE%%;
+            frame-src https://www.surveycake.com;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Python Flowchart</title>
     <script nonce="%%NONCE%%" src="%%MERMAID_JS_URI%%" defer
@@ -925,6 +926,32 @@
                 command: 'webview.timerStopped',
                 elapsedTime: elapsedTime
             });
+
+            // Load SurveyCake form
+            loadSurveyForm();
+        }
+
+        function loadSurveyForm() {
+            const surveyUrl = 'https://www.surveycake.com/s/8GMR7';
+
+            // Hide current content
+            document.querySelector('.output-section').style.display = 'none';
+            document.querySelector('.flowchart-section').style.display = 'none';
+            document.querySelector('.timer-section').style.display = 'none';
+
+            // Create iframe for survey using SurveyCake's recommended settings
+            const iframe = document.createElement('iframe');
+            iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-popups allow-forms allow-modals');
+            iframe.src = surveyUrl;
+            iframe.style.width = '100%';
+            iframe.style.height = '100vh';
+            iframe.style.border = '1px solid #ddd';
+            iframe.setAttribute('allowTransparency', 'true');
+            iframe.setAttribute('frameborder', '0');
+
+            document.body.appendChild(iframe);
+
+            console.log('Survey form loaded:', surveyUrl);
         }
 
         // Initialize timer buttons
