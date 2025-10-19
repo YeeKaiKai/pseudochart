@@ -241,7 +241,7 @@ function handleTimerStopped(elapsedTime: number) {
 
     vscode.window.showInformationMessage(`實驗計時結束！經過時間：${timeStr}`);
 
-    // TODO: Open Google Form in webview or external browser
+    // SurveyCake form will be loaded in webview by flowview.html
 }
 
 function handlePseudocodeLinesClick(pseudocodeLines: number[]) {
