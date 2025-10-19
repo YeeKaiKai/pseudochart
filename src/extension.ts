@@ -146,6 +146,9 @@ export function activate(context: vscode.ExtensionContext) {
                             console.log('收到 webview.pseudocodeLinesClicked 消息:', message);
                             handlePseudocodeLinesClick(message.pseudocodeLines);
                             break;
+                        case 'webview.timerStopped':
+                            handleTimerStopped(message.elapsedTime);
+                            break;
                     }
                 },
                 undefined,
@@ -227,6 +230,18 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(generateDisposable);
     context.subscriptions.push(selectionDisposable);
     context.subscriptions.push(disposable, onChangeDisposable, clearHistoryDisposable);
+}
+
+function handleTimerStopped(elapsedTime: number) {
+    console.log('Timer stopped, elapsed time:', elapsedTime, 'seconds');
+
+    const minutes = Math.floor(elapsedTime / 60);
+    const seconds = elapsedTime % 60;
+    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+    vscode.window.showInformationMessage(`實驗計時結束！經過時間：${timeStr}`);
+
+    // TODO: Open Google Form in webview or external browser
 }
 
 function handlePseudocodeLinesClick(pseudocodeLines: number[]) {

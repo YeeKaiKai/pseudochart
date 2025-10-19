@@ -287,6 +287,51 @@
                 filter: drop-shadow(0 0 5px #FFC107) drop-shadow(0 0 10px #FFC107);
             }
         }
+
+        /* Timer section styles */
+        .timer-section {
+            padding: 10px;
+            border-top: 2px solid var(--vscode-panel-border);
+            background-color: var(--vscode-editor-background);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .timer-display {
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--vscode-editor-foreground);
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .timer-button {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .timer-button:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
+
+        .timer-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .timer-button.stop {
+            background-color: var(--vscode-errorForeground);
+        }
     </style>
 </head>
 <body>
@@ -298,7 +343,7 @@
     </div>
 
     <div class="flowchart-section">
-        
+
         <div id="mermaid-container">
             <div class="zoom-indicator" id="zoomIndicator">100%</div>
             <div class="drag-indicator" id="dragIndicator">Pan Mode</div>
@@ -306,6 +351,12 @@
                 <div class="mermaid" id="flowchart">%%MERMAID_CODE%%</div>
             </div>
         </div>
+    </div>
+
+    <div class="timer-section">
+        <div class="timer-display" id="timerDisplay">00:00</div>
+        <button class="timer-button" id="startButton">Start</button>
+        <button class="timer-button stop" id="stopButton" disabled>Stop</button>
     </div>
 
     <script type="application/json" id="node-order-json" nonce="%%NONCE%%">%%NODE_ORDER_JSON%%</script>
@@ -316,6 +367,11 @@
         let currentHighlightedNodes = [];
         let currentHighlightedPseudocodeLines = [];
         let lineMapping = {};
+
+        // Timer state
+        let timerInterval = null;
+        let startTime = null;
+        let elapsedTime = 0; // in seconds
 
         const nodeOrderJsonTag = document.getElementById('node-order-json');
         let nodeOrder = [];
@@ -822,6 +878,60 @@
         function resetZoom() {
             resetView();
         }
+
+        // Timer functions
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return mins.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            display.textContent = formatTime(elapsedTime);
+        }
+
+        function startTimer() {
+            if (timerInterval) return; // Already running
+
+            startTime = Date.now() - (elapsedTime * 1000);
+
+            timerInterval = setInterval(() => {
+                elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+                updateTimerDisplay();
+            }, 1000);
+
+            // Update UI
+            document.getElementById('startButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+
+            console.log('Timer started');
+        }
+
+        function stopTimer() {
+            if (!timerInterval) return; // Not running
+
+            clearInterval(timerInterval);
+            timerInterval = null;
+
+            // Update UI
+            document.getElementById('startButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+
+            console.log('Timer stopped at:', formatTime(elapsedTime));
+
+            // Send message to extension
+            vscode.postMessage({
+                command: 'webview.timerStopped',
+                elapsedTime: elapsedTime
+            });
+        }
+
+        // Initialize timer buttons
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('startButton').addEventListener('click', startTimer);
+            document.getElementById('stopButton').addEventListener('click', stopTimer);
+        });
     </script>
 </body>
 </html>
