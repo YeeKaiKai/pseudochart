@@ -40,12 +40,52 @@
       ]
     },
     "configuration": {
-      "title": "Gemini",
+      "title": "Code2Pseudocode & Flowchart",
       "properties": {
         "gemini.apiKey": {
           "type": "string",
           "default": "",
           "markdownDescription": "Google AI Studio API key for Gemini. Leave blank to use environment variable GEMINI_API_KEY."
+        },
+        "experiment.condition": {
+          "type": "string",
+          "enum": ["control", "flowchart", "pseudocode", "both"],
+          "enumDescriptions": [
+            "Control - Source code only (no webview)",
+            "Flowchart only",
+            "Pseudocode only",
+            "Both flowchart and pseudocode"
+          ],
+          "default": "both",
+          "description": "Experiment condition to determine what to display"
+        },
+        "experiment.surveyUrls": {
+          "type": "object",
+          "default": {
+            "control": "https://www.surveycake.com/s/8GMR7",
+            "flowchart": "https://www.surveycake.com/s/8GMR7",
+            "pseudocode": "https://www.surveycake.com/s/8GMR7",
+            "both": "https://www.surveycake.com/s/8GMR7"
+          },
+          "description": "Survey URLs for each experiment condition",
+          "properties": {
+            "control": {
+              "type": "string",
+              "description": "Survey URL for control condition"
+            },
+            "flowchart": {
+              "type": "string",
+              "description": "Survey URL for flowchart condition"
+            },
+            "pseudocode": {
+              "type": "string",
+              "description": "Survey URL for pseudocode condition"
+            },
+            "both": {
+              "type": "string",
+              "description": "Survey URL for both condition"
+            }
+          }
         }
       }
     }

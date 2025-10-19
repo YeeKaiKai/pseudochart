@@ -61,9 +61,19 @@ export function activate(context: vscode.ExtensionContext) {
         }
 
         const document = editor.document;
-        
+
         if (document.languageId !== 'python') {
             vscode.window.showErrorMessage('Current file is not a Python file');
+            return;
+        }
+
+        // Get experiment condition from settings
+        const config = vscode.workspace.getConfiguration('experiment');
+        const condition = config.get<string>('condition', 'both');
+
+        // For control condition, don't open webview
+        if (condition === 'control') {
+            vscode.window.showInformationMessage('Control condition: Only source code is displayed. Timer will start when you click "開始計時".');
             return;
         }
 
@@ -120,7 +130,8 @@ export function activate(context: vscode.ExtensionContext) {
                 context,
                 mermaidCode,
                 nodeOrder,
-                getPseudocodeHistoryText()
+                getPseudocodeHistoryText(),
+                condition
             );
             
             currentPanel.webview.onDidReceiveMessage(
@@ -240,6 +251,27 @@ async function handleTimerStopped(elapsedTime: number) {
     const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
     vscode.window.showInformationMessage(`實驗計時結束！經過時間：${timeStr}`);
+
+    // Get experiment condition and corresponding survey URL
+    const config = vscode.workspace.getConfiguration('experiment');
+    const condition = config.get<string>('condition', 'both');
+    const surveyUrls = config.get<Record<string, string>>('surveyUrls', {
+        control: 'https://www.surveycake.com/s/8GMR7',
+        flowchart: 'https://www.surveycake.com/s/8GMR7',
+        pseudocode: 'https://www.surveycake.com/s/8GMR7',
+        both: 'https://www.surveycake.com/s/8GMR7'
+    });
+
+    const surveyUrl = surveyUrls[condition] || surveyUrls.both;
+    console.log('Survey URL for condition', condition, ':', surveyUrl);
+
+    // Send survey URL to webview
+    if (currentPanel) {
+        currentPanel.webview.postMessage({
+            command: 'loadSurvey',
+            url: surveyUrl
+        });
+    }
 
     // Close all Python editors to prevent viewing code during survey
     const editors = vscode.window.visibleTextEditors;
@@ -465,7 +497,8 @@ async function getWebviewHtmlExternal(
     context: vscode.ExtensionContext,
     mermaidCode: string,
     nodeOrder: string[],
-    pseudocode: string = ''
+    pseudocode: string = '',
+    condition: string = 'both'
 ): Promise<string> {
     const templateUri = vscode.Uri.joinPath(context.extensionUri, 'media', 'flowview.html');
     const bytes = await vscode.workspace.fs.readFile(templateUri);
@@ -477,13 +510,22 @@ async function getWebviewHtmlExternal(
     console.log('Mermaid URI:', mermaidUri.toString());
     const nonce = getNonce();
 
+    // Add conditional CSS based on experiment condition
+    let conditionalCss = '';
+    if (condition === 'flowchart') {
+        conditionalCss = '.output-section { visibility: hidden !important; }';
+    } else if (condition === 'pseudocode') {
+        conditionalCss = '.flowchart-section { visibility: hidden !important; }';
+    }
+
     html = html
         .replace(/%%CSP_SOURCE%%/g, webview.cspSource)
         .replace(/%%NONCE%%/g, nonce)
         .replace(/%%MERMAID_JS_URI%%/g, mermaidUri.toString())
         .replace(/%%MERMAID_CODE%%/g, mermaidCode)
         .replace(/%%NODE_ORDER_JSON%%/g, JSON.stringify(nodeOrder))
-        .replace(/%%PSEUDOCODE%%/g, escapeHtml(pseudocode)); 
+        .replace(/%%PSEUDOCODE%%/g, escapeHtml(pseudocode))
+        .replace(/%%CONDITIONAL_CSS%%/g, conditionalCss);
 
     return html;
 }
