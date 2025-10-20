@@ -333,6 +333,9 @@
         .timer-button.stop {
             background-color: var(--vscode-errorForeground);
         }
+
+        /* Conditional CSS based on experiment condition */
+        %%CONDITIONAL_CSS%%
     </style>
 </head>
 <body>
@@ -832,7 +835,7 @@
         window.addEventListener('message', event => {
             const message = event.data;
             console.log('Received message:', message.command);
-            
+
             switch (message.command) {
                 case 'highlightNodesAndPseudocode':
                     console.log('Highlighting nodes and pseudocode:', message.nodeIds, message.pseudocodeLines);
@@ -855,6 +858,9 @@
                     break;
                 case 'setLineMapping':
                     setLineMapping(message.mapping);
+                    break;
+                case 'loadSurvey':
+                    loadSurveyForm(message.url);
                     break;
             }
         });
@@ -931,8 +937,10 @@
             loadSurveyForm();
         }
 
-        function loadSurveyForm() {
-            const surveyUrl = 'https://www.surveycake.com/s/8GMR7';
+        function loadSurveyForm(surveyUrl) {
+            if (!surveyUrl) {
+                surveyUrl = 'https://www.surveycake.com/s/8GMR7';
+            }
 
             // Hide current content
             document.querySelector('.output-section').style.display = 'none';

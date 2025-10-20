@@ -160,6 +160,63 @@ dist/                         # Webpack output directory
 - `code2pseudocode.convertToPseudocode`: Convert to Pseudocode
 - `code2pseudocode.clearHistory`: Clear pseudocode history
 
+## Experiment Features
+
+### Experiment Conditions
+
+The extension supports four experiment conditions configured via VS Code settings:
+
+#### Configuration
+```json
+{
+  "experiment.condition": "both",  // "control" | "flowchart" | "pseudocode" | "both"
+  "experiment.surveyUrls": {
+    "control": "https://www.surveycake.com/s/XXXXX",
+    "flowchart": "https://www.surveycake.com/s/YYYYY",
+    "pseudocode": "https://www.surveycake.com/s/ZZZZZ",
+    "both": "https://www.surveycake.com/s/WWWWW"
+  }
+}
+```
+
+#### Conditions Behavior
+
+1. **control** - Source code only
+   - Does NOT open webview when "Generate Flowchart" is executed
+   - Shows information message explaining control condition
+   - Participants see only Python source code
+
+2. **flowchart** - Flowchart only
+   - Opens webview with pseudocode section hidden (`visibility: hidden`)
+   - Flowchart maintains original position and size
+   - Timer and buttons visible
+
+3. **pseudocode** - Pseudocode only
+   - Opens webview with flowchart section hidden (`visibility: hidden`)
+   - Pseudocode maintains original position and size
+   - Timer and buttons visible
+
+4. **both** - Both flowchart and pseudocode (default)
+   - Shows complete interface with both sections
+   - Full functionality available
+
+### Timer and Survey Integration
+
+- Timer display and control buttons ("開始計時" / "理解完成") appear at bottom of webview
+- When "理解完成" is clicked:
+  1. Timer stops and elapsed time is recorded
+  2. All Python editors are closed automatically
+  3. Webview is maximized to full window
+  4. SurveyCake form loads based on `experiment.surveyUrls` configuration
+  5. Survey URL is dynamically selected based on current condition
+
+### Survey Form Loading
+
+- Uses iframe with SurveyCake's recommended sandbox attributes
+- CSP includes `frame-src https://www.surveycake.com/` to allow embedding
+- Survey loads in same webview panel, replacing flowchart/pseudocode content
+- Participants cannot return to view code after survey starts
+
 ## Common Gotchas
 
 1. **`sourceDocUri` Stale Reference**: If user switches files after generating flowchart, `sourceDocUri` may point to wrong file. The extension checks for this in event handlers.
