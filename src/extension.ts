@@ -264,18 +264,47 @@ async function handleTimerStopped(elapsedTime: number) {
 
     vscode.window.showInformationMessage(`實驗計時結束！經過時間：${timeStr}`);
 
-    // Get experiment condition and corresponding survey URL
+    // Get survey URL based on file mapping or condition
     const config = vscode.workspace.getConfiguration('experiment');
     const condition = config.get<string>('condition', 'both');
-    const surveyUrls = config.get<Record<string, string>>('surveyUrls', {
-        control: 'https://www.surveycake.com/s/8GMR7',
-        flowchart: 'https://www.surveycake.com/s/8GMR7',
-        pseudocode: 'https://www.surveycake.com/s/8GMR7',
-        both: 'https://www.surveycake.com/s/8GMR7'
-    });
 
-    const surveyUrl = surveyUrls[condition] || surveyUrls.both;
-    console.log('Survey URL for condition', condition, ':', surveyUrl);
+    // Try to get URL from file mapping first
+    let surveyUrl: string | undefined;
+
+    if (sourceDocUri) {
+        const fileName = path.basename(sourceDocUri.fsPath);
+        const fileSurveyMap = config.get<Record<string, string>>('fileSurveyMap', {});
+
+        // Check exact file name match
+        if (fileSurveyMap[fileName]) {
+            surveyUrl = fileSurveyMap[fileName];
+            console.log(`Survey URL from file mapping for "${fileName}":`, surveyUrl);
+        } else {
+            // Check pattern matching (e.g., "*.py" or "task*.py")
+            for (const [pattern, url] of Object.entries(fileSurveyMap)) {
+                if (pattern.includes('*')) {
+                    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+                    if (regex.test(fileName)) {
+                        surveyUrl = url;
+                        console.log(`Survey URL from pattern "${pattern}" for "${fileName}":`, surveyUrl);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback to condition-based URLs if no file mapping found
+    if (!surveyUrl) {
+        const surveyUrls = config.get<Record<string, string>>('surveyUrls', {
+            control: 'https://www.surveycake.com/s/8GMR7',
+            flowchart: 'https://www.surveycake.com/s/8GMR7',
+            pseudocode: 'https://www.surveycake.com/s/8GMR7',
+            both: 'https://www.surveycake.com/s/8GMR7'
+        });
+        surveyUrl = surveyUrls[condition] || surveyUrls.both;
+        console.log('Survey URL from condition', condition, ':', surveyUrl);
+    }
 
     // Send survey URL to webview
     if (currentPanel) {

@@ -86,6 +86,15 @@
               "description": "Survey URL for both condition"
             }
           }
+        },
+        "experiment.fileSurveyMap": {
+          "type": "object",
+          "default": {},
+          "description": "Map specific Python files to survey URLs (overrides condition-based URLs)",
+          "markdownDescription": "Map Python file names to survey URLs. Supports wildcards (e.g., `task*.py`). Example:\n```json\n{\n  \"task1.py\": \"https://www.surveycake.com/s/XXXXX\",\n  \"task2.py\": \"https://www.surveycake.com/s/YYYYY\",\n  \"practice*.py\": \"https://www.surveycake.com/s/ZZZZZ\"\n}\n```",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     }
