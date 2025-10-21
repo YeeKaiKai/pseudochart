@@ -913,6 +913,11 @@
             document.getElementById('stopButton').disabled = false;
 
             console.log('Timer started');
+
+            // 啟動眼動追蹤
+            vscode.postMessage({
+                command: 'webview.startEyeTracking'
+            });
         }
 
         function stopTimer() {
@@ -926,6 +931,11 @@
             document.getElementById('stopButton').disabled = true;
 
             console.log('Timer stopped at:', formatTime(elapsedTime));
+
+            // 停止眼動追蹤
+            vscode.postMessage({
+                command: 'webview.stopEyeTracking'
+            });
 
             // Send message to extension
             vscode.postMessage({

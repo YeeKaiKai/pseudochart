@@ -6,11 +6,17 @@ import { parsePythonWithAST } from './pythonAnalyzer';
 import { FlowchartNodeClickEventHandler, clearEditor, handlePseudocodeLineClick,
     clearHighlightInWebviewPanel, highlightNodesAndPseudocodeInWebview
 } from './WebviewEventHandler';
+import { spawn, ChildProcess } from 'child_process';
+import * as fs from 'fs';
 
 
 export let sourceDocUri: vscode.Uri | undefined;
 export let currentPanel: vscode.WebviewPanel | undefined;
 let nodeOrder: string[] = [];
+
+// 眼動追蹤進程管理
+let tobiiStreamProcess: ChildProcess | null = null;
+let pytobiiProcess: ChildProcess | null = null;
 
 const pseudocodeCache = new Map<string, string>();
 let pseudocodeHistory: string[] = [];
@@ -159,6 +165,12 @@ export function activate(context: vscode.ExtensionContext) {
                             break;
                         case 'webview.timerStopped':
                             handleTimerStopped(message.elapsedTime);
+                            break;
+                        case 'webview.startEyeTracking':
+                            startEyeTracking(context.extensionPath);
+                            break;
+                        case 'webview.stopEyeTracking':
+                            stopEyeTracking();
                             break;
                     }
                 },
@@ -623,7 +635,141 @@ function escapeHtml(text: string): string {
 }
 
 export function deactivate() {
+    stopEyeTracking();
     if (currentPanel) {
         currentPanel.dispose();
     }
+}
+
+// 眼動追蹤函數
+function startEyeTracking(extensionPath: string) {
+    console.log('Starting eye tracking...');
+
+    // 確保輸出目錄存在
+    const outputDir = path.join(extensionPath, 'eye_tracking_data');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // 1. 啟動 TobiiStream.exe
+    const tobiiExePath = path.join(
+        extensionPath,
+        'eye-tracker-naive-master',
+        'TobiiStream',
+        'TobiiStream.exe'
+    );
+
+    if (!fs.existsSync(tobiiExePath)) {
+        vscode.window.showErrorMessage(`TobiiStream.exe not found at: ${tobiiExePath}`);
+        return;
+    }
+
+    try {
+        tobiiStreamProcess = spawn(tobiiExePath);
+
+        tobiiStreamProcess.on('error', (err) => {
+            console.error('TobiiStream process error:', err);
+            vscode.window.showErrorMessage(`Failed to start TobiiStream: ${err.message}`);
+        });
+
+        tobiiStreamProcess.on('exit', (code) => {
+            console.log(`TobiiStream exited with code ${code}`);
+        });
+
+        console.log('TobiiStream.exe started');
+
+        // 等待 TobiiStream 啟動 (給它 2 秒準備)
+        setTimeout(() => {
+            startPytobiiScript(extensionPath);
+        }, 2000);
+
+    } catch (err) {
+        console.error('Failed to start TobiiStream:', err);
+        vscode.window.showErrorMessage(`Failed to start TobiiStream: ${err}`);
+    }
+}
+
+function startPytobiiScript(extensionPath: string) {
+    // 2. 啟動 pytobii.py
+    const pythonScript = path.join(extensionPath, 'src', 'python', 'pytobii.py');
+
+    if (!fs.existsSync(pythonScript)) {
+        vscode.window.showErrorMessage(`pytobii.py not found at: ${pythonScript}`);
+        return;
+    }
+
+    // 生成輸出檔案路徑
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').split('.')[0];
+    const outputFile = path.join(extensionPath, 'eye_tracking_data', `eyedata_${timestamp}.txt`);
+
+    // 嘗試不同的 Python 命令
+    const pythonCommands = ['python', 'python3', 'py'];
+    let started = false;
+
+    for (const cmd of pythonCommands) {
+        try {
+            pytobiiProcess = spawn(cmd, [pythonScript, outputFile]);
+
+            pytobiiProcess.stdout?.on('data', (data) => {
+                console.log(`pytobii output: ${data}`);
+            });
+
+            pytobiiProcess.stderr?.on('data', (data) => {
+                console.error(`pytobii error: ${data}`);
+            });
+
+            pytobiiProcess.on('error', (err) => {
+                console.error('Python process error:', err);
+                if (!started) {
+                    // 嘗試下一個命令
+                    return;
+                }
+            });
+
+            pytobiiProcess.on('exit', (code) => {
+                console.log(`pytobii exited with code ${code}`);
+            });
+
+            console.log(`pytobii.py started with ${cmd}, output: ${outputFile}`);
+            vscode.window.showInformationMessage(`Eye tracking started. Data will be saved to: ${path.basename(outputFile)}`);
+            started = true;
+            break;
+
+        } catch (err) {
+            console.error(`Failed to start with ${cmd}:`, err);
+            continue;
+        }
+    }
+
+    if (!started) {
+        vscode.window.showErrorMessage('Failed to start pytobii.py. Please ensure Python is installed.');
+    }
+}
+
+function stopEyeTracking() {
+    console.log('Stopping eye tracking...');
+
+    // 停止 pytobii.py
+    if (pytobiiProcess) {
+        try {
+            pytobiiProcess.kill('SIGINT'); // 模擬 Ctrl+C
+            console.log('pytobii.py terminated');
+        } catch (err) {
+            console.error('Error stopping pytobii:', err);
+        }
+        pytobiiProcess = null;
+    }
+
+    // 停止 TobiiStream.exe
+    if (tobiiStreamProcess) {
+        try {
+            tobiiStreamProcess.kill();
+            console.log('TobiiStream.exe terminated');
+        } catch (err) {
+            console.error('Error stopping TobiiStream:', err);
+        }
+        tobiiStreamProcess = null;
+    }
+
+    vscode.window.showInformationMessage('Eye tracking stopped');
 }
