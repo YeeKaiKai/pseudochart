@@ -694,18 +694,20 @@ function startEyeTracking(extensionPath: string) {
     }
 
     try {
-        tobiiStreamProcess = spawn(tobiiExePath);
+        // 使用 cmd /c start 在新的 console 視窗中啟動 TobiiStream
+        tobiiStreamProcess = spawn('cmd.exe', ['/c', 'start', '/min', 'TobiiStream.exe'], {
+            cwd: path.dirname(tobiiExePath),
+            detached: true,
+            windowsHide: false,
+            shell: false
+        });
 
         tobiiStreamProcess.on('error', (err) => {
             console.error('TobiiStream process error:', err);
             vscode.window.showErrorMessage(`Failed to start TobiiStream: ${err.message}`);
         });
 
-        tobiiStreamProcess.on('exit', (code) => {
-            console.log(`TobiiStream exited with code ${code}`);
-        });
-
-        console.log('TobiiStream.exe started');
+        console.log('TobiiStream.exe started in separate console window');
 
         // 等待 TobiiStream 啟動 (給它 2 秒準備)
         setTimeout(() => {
@@ -781,7 +783,7 @@ function stopEyeTracking() {
     // 停止 pytobii.py
     if (pytobiiProcess) {
         try {
-            pytobiiProcess.kill('SIGINT'); // 模擬 Ctrl+C
+            pytobiiProcess.kill(); // Windows 上直接 kill
             console.log('pytobii.py terminated');
         } catch (err) {
             console.error('Error stopping pytobii:', err);
@@ -789,16 +791,14 @@ function stopEyeTracking() {
         pytobiiProcess = null;
     }
 
-    // 停止 TobiiStream.exe
-    if (tobiiStreamProcess) {
-        try {
-            tobiiStreamProcess.kill();
-            console.log('TobiiStream.exe terminated');
-        } catch (err) {
-            console.error('Error stopping TobiiStream:', err);
-        }
-        tobiiStreamProcess = null;
+    // 停止 TobiiStream.exe - 使用 taskkill
+    try {
+        spawn('taskkill', ['/F', '/IM', 'TobiiStream.exe']);
+        console.log('TobiiStream.exe terminated');
+    } catch (err) {
+        console.error('Error stopping TobiiStream:', err);
     }
+    tobiiStreamProcess = null;
 
     vscode.window.showInformationMessage('Eye tracking stopped');
 }
