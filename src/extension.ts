@@ -164,7 +164,7 @@ export function activate(context: vscode.ExtensionContext) {
                             handlePseudocodeLinesClick(message.pseudocodeLines);
                             break;
                         case 'webview.timerStopped':
-                            handleTimerStopped(message.elapsedTime);
+                            handleTimerStopped(context.extensionPath, message.elapsedTime);
                             break;
                         case 'webview.startEyeTracking':
                             startEyeTracking(context.extensionPath);
@@ -255,8 +255,33 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable, onChangeDisposable, clearHistoryDisposable);
 }
 
-async function handleTimerStopped(elapsedTime: number) {
+function saveTimeData(extensionPath: string, elapsedTime: number) {
+    try {
+        // Create time_data directory if it doesn't exist
+        const timeDataDir = path.join(extensionPath, 'time_data');
+        if (!fs.existsSync(timeDataDir)) {
+            fs.mkdirSync(timeDataDir, { recursive: true });
+        }
+
+        // Generate filename with timestamp
+        const timestamp = new Date().getTime();
+        const filename = `time_${timestamp}.txt`;
+        const filePath = path.join(timeDataDir, filename);
+
+        // Write elapsed time (in seconds) to file
+        fs.writeFileSync(filePath, elapsedTime.toString());
+
+        console.log(`Time data saved to: ${filePath}`);
+    } catch (error) {
+        console.error('Failed to save time data:', error);
+    }
+}
+
+async function handleTimerStopped(extensionPath: string, elapsedTime: number) {
     console.log('Timer stopped, elapsed time:', elapsedTime, 'seconds');
+
+    // Save time data to file
+    saveTimeData(extensionPath, elapsedTime);
 
     const minutes = Math.floor(elapsedTime / 60);
     const seconds = elapsedTime % 60;
